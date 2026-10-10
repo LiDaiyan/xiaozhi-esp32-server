@@ -5,3 +5,13 @@ __pycache__
 Dockerfile
 tmp/
 data/
+**/.env
+main/xiaozhi-server/data/
+main/xiaozhi-server/mysql/
+main/xiaozhi-server/uploadfile/
+main/xiaozhi-server/tmp/
+main/xiaozhi-server/logs/
+main/manager-web/node_modules/
+main/manager-web/dist/
+main/manager-web/.npm-cache/
+main/manager-api/target/

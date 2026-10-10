@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 from config.logger import setup_logging
 from core.providers.asr.base import ASRProviderBase
 from core.providers.asr.dto.dto import InterfaceType
+from core.utils.alibl_endpoint import resolve_ws_url
 
 TAG = __name__
 logger = setup_logging()
@@ -45,7 +46,7 @@ class ASRProvider(ASRProviderBase):
         self.inverse_text_normalization_enabled = config.get("inverse_text_normalization_enabled", True)
 
         # WebSocket URL
-        self.ws_url = "wss://dashscope.aliyuncs.com/api-ws/v1/inference"
+        self.ws_url = resolve_ws_url(config.get("ws_url"))
 
         self.output_dir = config.get("output_dir", "./audio_output")
         self.delete_audio_file = delete_audio_file

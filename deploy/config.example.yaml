@@ -1,0 +1,10 @@
+# init 服务使用此模板生成 data/.config.yaml，并自动填写 server.secret。
+server:
+  ip: 0.0.0.0
+  port: 8000
+  # 启动代码需要内部 HTTP 端口；Compose 不对外映射该端口。
+  http_port: 8003
+manager-api:
+  url: http://xiaozhi-esp32-server-web:8002/xiaozhi
+  secret: REPLACE_WITH_SERVER_SECRET
+prompt_template: agent-base-prompt.txt

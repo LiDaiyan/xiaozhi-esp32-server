@@ -1,0 +1,115 @@
+# Docker安装全模块
+
+version: '3'
+services:
+  # Server模块
+  xiaozhi-esp32-server:
+    image: xiaozhi-server:product
+    build:
+      context: ..
+      dockerfile: Dockerfile-server
+    container_name: xiaozhi-esp32-server
+    depends_on:
+      xiaozhi-esp32-server-init:
+        condition: service_completed_successfully
+    restart: always
+    networks:
+      - default
+    ports:
+      # ws服务端
+      - "8000:8000"
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      # 配置文件目录
+      - ../main/xiaozhi-server/data:/opt/xiaozhi-esp32-server/data
+
+  # manager-api和manager-web模块
+  xiaozhi-esp32-server-web:
+    image: xiaozhi-web:product
+    build:
+      context: ..
+      dockerfile: Dockerfile-web
+    container_name: xiaozhi-esp32-server-web
+    restart: always
+    networks:
+      - default
+    depends_on:
+      xiaozhi-esp32-server-db:
+        condition: service_healthy
+      xiaozhi-esp32-server-redis:
+        condition: service_healthy
+    ports:
+      # 智控台
+      - "8002:8002"
+    environment:
+      - TZ=Asia/Shanghai
+      - SPRING_DATASOURCE_DRUID_URL=jdbc:mysql://xiaozhi-esp32-server-db:3306/xiaozhi_esp32_server?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&nullCatalogMeansCurrent=true&connectTimeout=30000&socketTimeout=30000&autoReconnect=true&failOverReadOnly=false&maxReconnects=10
+      - SPRING_DATASOURCE_DRUID_USERNAME=root
+      - SPRING_DATASOURCE_DRUID_PASSWORD=123456
+      - SPRING_DATA_REDIS_HOST=xiaozhi-esp32-server-redis
+      - SPRING_DATA_REDIS_PASSWORD=
+      - SPRING_DATA_REDIS_PORT=6379
+    volumes:
+      # 配置文件目录
+      - ../main/xiaozhi-server/uploadfile:/uploadfile
+  # 数据库模块
+  xiaozhi-esp32-server-db:
+    image: mysql:latest
+    container_name: xiaozhi-esp32-server-db
+    healthcheck:
+      test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
+      timeout: 45s
+      interval: 10s
+      retries: 10
+    restart: always
+    networks:
+      - default
+    expose:
+      - 3306
+    volumes:
+      - ../main/xiaozhi-server/mysql/data:/var/lib/mysql
+    environment:
+      - TZ=Asia/Shanghai
+      - MYSQL_ROOT_PASSWORD=123456
+      - MYSQL_DATABASE=xiaozhi_esp32_server
+      - MYSQL_INITDB_ARGS="--character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci"
+  # redis模块
+  xiaozhi-esp32-server-redis:
+    image: redis:8.0
+    expose:
+      - 6379
+    container_name: xiaozhi-esp32-server-redis
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - default
+  # 自动取得管理端密钥并生成语音服务配置，完成后退出
+  xiaozhi-esp32-server-init:
+    image: xiaozhi-init:product
+    build:
+      context: .
+      dockerfile: Dockerfile-init
+    depends_on:
+      xiaozhi-esp32-server-db:
+        condition: service_healthy
+      xiaozhi-esp32-server-web:
+        condition: service_started
+    restart: "no"
+    networks:
+      - default
+    environment:
+      - MYSQL_HOST=xiaozhi-esp32-server-db
+      - MYSQL_ROOT_PASSWORD=123456
+      - MANAGER_API_URL=http://xiaozhi-esp32-server-web:8002/xiaozhi
+    volumes:
+      - ../main/xiaozhi-server/data:/data
+      - ./config.example.yaml:/app/config.example.yaml:ro
+networks:
+  default:
