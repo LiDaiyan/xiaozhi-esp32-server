@@ -150,10 +150,11 @@ public class SysParamsController {
                     throw new RenException(ErrorCode.WEBSOCKET_URL_FORMAT_ERROR);
                 }
 
+                // 下发给设备的公网地址可能无法从服务器回连，保存时只校验格式。
                 // 测试WebSocket连接
-                if (!WebSocketValidator.testConnection(url)) {
-                    throw new RenException(ErrorCode.WEBSOCKET_CONNECTION_FAILED);
-                }
+                // if (!WebSocketValidator.testConnection(url)) {
+                //     throw new RenException(ErrorCode.WEBSOCKET_CONNECTION_FAILED);
+                // }
             }
         }
     }
@@ -194,21 +195,22 @@ public class SysParamsController {
         if (!url.endsWith("/ota/")) {
             throw new RenException(ErrorCode.OTA_URL_FORMAT_ERROR);
         }
+        // 下发给设备的公网地址可能无法从服务器回连，保存时只校验格式。
 
-        try {
-            // 发送GET请求
-            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-            if (response.getStatusCode() != HttpStatus.OK) {
-                throw new RenException(ErrorCode.OTA_INTERFACE_ACCESS_FAILED);
-            }
-            // 检查响应内容是否包含OTA相关信息
-            String body = response.getBody();
-            if (body == null || !body.contains("OTA")) {
-                throw new RenException(ErrorCode.OTA_INTERFACE_FORMAT_ERROR);
-            }
-        } catch (Exception e) {
-            throw new RenException(ErrorCode.OTA_INTERFACE_VALIDATION_FAILED);
-        }
+        // try {
+        //     // 发送GET请求
+        //     ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+        //     if (response.getStatusCode() != HttpStatus.OK) {
+        //         throw new RenException(ErrorCode.OTA_INTERFACE_ACCESS_FAILED);
+        //     }
+        //     // 检查响应内容是否包含OTA相关信息
+        //     String body = response.getBody();
+        //     if (body == null || !body.contains("OTA")) {
+        //         throw new RenException(ErrorCode.OTA_INTERFACE_FORMAT_ERROR);
+        //     }
+        // } catch (Exception e) {
+        //     throw new RenException(ErrorCode.OTA_INTERFACE_VALIDATION_FAILED);
+        // }
     }
 
     private void validateMcpUrl(String paramCode, String url) {
