@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
@@ -38,6 +39,7 @@ import xiaozhi.modules.correctword.vo.CorrectWordSimpleVO;
 import xiaozhi.modules.config.service.ConfigService;
 import xiaozhi.modules.device.entity.DeviceEntity;
 import xiaozhi.modules.device.service.DeviceService;
+import xiaozhi.modules.project.service.ProjectService;
 import xiaozhi.modules.model.entity.ModelConfigEntity;
 import xiaozhi.modules.model.service.ModelConfigService;
 import xiaozhi.modules.sys.dto.SysParamsDTO;
@@ -63,6 +65,7 @@ public class ConfigServiceImpl implements ConfigService {
     private final VoiceCloneService cloneVoiceService;
     private final AgentVoicePrintDao agentVoicePrintDao;
     private final CorrectWordFileService correctWordFileService;
+    private final ProjectService projectService;
 
     @Override
     public Map<String, Object> getConfig(Boolean isCache) {
@@ -133,6 +136,13 @@ public class ConfigServiceImpl implements ConfigService {
             if (StringUtils.isNotBlank(cachedCode)) {
                 throw new RenException(ErrorCode.OTA_DEVICE_NEED_BIND, cachedCode);
             }
+            throw new RenException(ErrorCode.OTA_DEVICE_NOT_FOUND);
+        }
+
+        try {
+            projectService.requireBoundDevice(device);
+        } catch (ResponseStatusException e) {
+            // The voice service treats OTA_DEVICE_NOT_FOUND as a denied/unbound device.
             throw new RenException(ErrorCode.OTA_DEVICE_NOT_FOUND);
         }
 

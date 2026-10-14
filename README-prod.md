@@ -27,6 +27,13 @@ docker compose -f deploy/compose.yml up -d --build
 
 使用反代时填写实际 HTTPS/WSS 地址。
 
+## 项目设备自动绑定
+
+首页【项目与白名单】可创建项目并批量导入 MAC。设备 OTA 请求携带 `Project-Id`，
+白名单匹配后自动创建智能体并绑定，无需验证码；首页按 Project-Id 分组展示。
+新智能体继承当前默认模板，归属于创建项目的账号。
+设备端请求示例及管理 API 见 [项目设备自动绑定](docs/project-device-provisioning.md)。
+
 ## 修改源码后重新部署
 
 ```bash

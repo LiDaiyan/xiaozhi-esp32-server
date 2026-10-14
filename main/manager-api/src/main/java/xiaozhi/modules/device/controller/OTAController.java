@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.MediaType;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,6 +30,7 @@ import xiaozhi.modules.device.dto.DeviceReportRespDTO;
 import xiaozhi.modules.device.entity.DeviceEntity;
 import xiaozhi.modules.device.service.DeviceService;
 import xiaozhi.modules.sys.service.SysParamsService;
+import xiaozhi.modules.project.service.ProjectService;
 
 @Tag(name = "设备管理", description = "OTA 相关接口")
 @Slf4j
@@ -38,13 +40,16 @@ import xiaozhi.modules.sys.service.SysParamsService;
 public class OTAController {
     private final DeviceService deviceService;
     private final SysParamsService sysParamsService;
+    private final ProjectService projectService;
 
     @Operation(summary = "OTA版本和设备激活状态检查")
     @PostMapping
     public ResponseEntity<String> checkOTAVersion(
             @RequestBody DeviceReportReqDTO deviceReportReqDTO,
             @Parameter(name = "Device-Id", description = "设备唯一标识", required = true, in = ParameterIn.HEADER) @RequestHeader("Device-Id") String deviceId,
-            @Parameter(name = "Client-Id", description = "客户端标识", required = false, in = ParameterIn.HEADER) @RequestHeader(value = "Client-Id", required = false) String clientId) {
+            @Parameter(name = "Client-Id", description = "客户端标识", required = false, in = ParameterIn.HEADER) @RequestHeader(value = "Client-Id", required = false) String clientId,
+            @Parameter(name = "Project-Id", description = "设备所属项目", in = ParameterIn.HEADER)
+            @RequestHeader(value = "Project-Id", required = false) String projectId) {
         if (StringUtils.isBlank(deviceId)) {
             return createResponse(DeviceReportRespDTO.createError("Device ID is required"));
         }
@@ -56,6 +61,16 @@ public class OTAController {
         if (!macAddressValid) {
             return createResponse(DeviceReportRespDTO.createError("Invalid device ID"));
         }
+        try {
+            if (projectId != null) {
+                projectService.provision(projectId, deviceId, deviceReportReqDTO);
+            } else {
+                projectService.requireLegacyDevice(deviceId);
+            }
+        } catch (ResponseStatusException e) {
+            ResponseEntity<String> error = createResponse(DeviceReportRespDTO.createError(e.getReason()));
+            return ResponseEntity.status(e.getStatusCode()).headers(error.getHeaders()).body(error.getBody());
+        }
         return createResponse(deviceService.checkDeviceActive(deviceId, clientId, deviceReportReqDTO));
     }
 
@@ -63,13 +78,32 @@ public class OTAController {
     @PostMapping("activate")
     public ResponseEntity<String> activateDevice(
             @Parameter(name = "Device-Id", description = "设备唯一标识", required = true, in = ParameterIn.HEADER) @RequestHeader("Device-Id") String deviceId,
-            @Parameter(name = "Client-Id", description = "客户端标识", required = false, in = ParameterIn.HEADER) @RequestHeader(value = "Client-Id", required = false) String clientId) {
+            @Parameter(name = "Client-Id", description = "客户端标识", required = false, in = ParameterIn.HEADER) @RequestHeader(value = "Client-Id", required = false) String clientId,
+            @Parameter(name = "Project-Id", description = "设备所属项目", in = ParameterIn.HEADER)
+            @RequestHeader(value = "Project-Id", required = false) String projectId) {
         if (StringUtils.isBlank(deviceId)) {
             return ResponseEntity.status(202).build();
+        }
+        if (!isMacAddressValid(deviceId)) {
+            return ResponseEntity.badRequest().build();
+        }
+        try {
+            if (projectId != null) {
+                projectService.requireMembership(projectId, deviceId);
+            } else {
+                projectService.requireLegacyDevice(deviceId);
+            }
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).build();
         }
         DeviceEntity device = deviceService.getDeviceByMacAddress(deviceId);
         if (device == null) {
             return ResponseEntity.status(202).build();
+        }
+        try {
+            projectService.requireBoundDevice(device);
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).build();
         }
         return ResponseEntity.ok("success");
     }
@@ -116,7 +150,7 @@ public class OTAController {
             return false;
         }
         // MAC地址通常为12位十六进制数字，可以包含冒号或连字符分隔符
-        String macPattern = "^([0-9A-Za-z]{2}[:-]){5}([0-9A-Za-z]{2})$";
+        String macPattern = "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$";
         return macAddress.matches(macPattern);
     }
 }

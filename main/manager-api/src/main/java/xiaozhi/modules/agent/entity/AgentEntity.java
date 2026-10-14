@@ -28,6 +28,9 @@ public class AgentEntity {
     @Schema(description = "智能体名称")
     private String agentName;
 
+    @Schema(description = "所属 Project-Id，旧智能体为空")
+    private String projectId;
+
     @Schema(description = "语音识别模型标识")
     private String asrModelId;
 

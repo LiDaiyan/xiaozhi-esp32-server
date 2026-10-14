@@ -11,6 +11,7 @@
         <result column="userId"    property="userId"/>
         <result column="agentCode" property="agentCode"/>
         <result column="agentName" property="agentName"/>
+        <result column="projectId" property="projectId"/>
         <result column="asrModelId" property="asrModelId"/>
         <result column="vadModelId" property="vadModelId"/>
         <result column="llmModelId" property="llmModelId"/>
@@ -49,6 +50,7 @@
                a.user_id           AS userId,
                a.agent_code        AS agentCode,
                a.agent_name        AS agentName,
+               a.project_id        AS projectId,
                a.asr_model_id      AS asrModelId,
                a.vad_model_id      AS vadModelId,
                a.llm_model_id      AS llmModelId,

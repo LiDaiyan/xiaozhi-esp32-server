@@ -266,6 +266,7 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
         AgentDTO dto = new AgentDTO();
         dto.setId(agent.getId());
         dto.setAgentName(agent.getAgentName());
+        dto.setProjectId(agent.getProjectId());
         dto.setSystemPrompt(agent.getSystemPrompt());
 
         // 获取 TTS 模型名称
@@ -590,6 +591,21 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String createAgent(AgentCreateDTO dto) {
+        return createAgent(dto, SecurityUser.getUserId(), null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String createAgentForProject(String agentName, Long userId, String projectId) {
+        if (userId == null || StringUtils.isBlank(projectId)) {
+            throw new RenException("项目及所属用户不能为空");
+        }
+        AgentCreateDTO dto = new AgentCreateDTO();
+        dto.setAgentName(agentName);
+        return createAgent(dto, userId, projectId);
+    }
+
+    private String createAgent(AgentCreateDTO dto, Long userId, String projectId) {
         // 转换为实体
         AgentEntity entity = ConvertUtils.sourceToTarget(dto, AgentEntity.class);
 
@@ -655,10 +671,15 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
         }
 
         // 设置用户ID和创建者信息
-        UserDetail user = SecurityUser.getUser();
-        entity.setUserId(user.getId());
-        entity.setCreator(user.getId());
+        entity.setUserId(userId);
+        entity.setProjectId(projectId);
+        entity.setCreator(userId);
+        entity.setUpdater(userId);
         entity.setCreatedAt(new Date());
+        entity.setUpdatedAt(new Date());
+        if (projectId != null) {
+            entity.setAgentCode("AGT_" + UUID.randomUUID().toString().replace("-", ""));
+        }
 
         // 保存智能体
         insert(entity);

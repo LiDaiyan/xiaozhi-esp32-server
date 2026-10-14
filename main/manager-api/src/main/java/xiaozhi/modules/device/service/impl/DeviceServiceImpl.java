@@ -396,7 +396,8 @@ public class DeviceServiceImpl extends BaseServiceImpl<DeviceDao, DeviceEntity> 
             return null;
         }
         QueryWrapper<DeviceEntity> wrapper = new QueryWrapper<>();
-        wrapper.eq("mac_address", macAddress);
+        String canonicalMac = macAddress.replace('-', ':');
+        wrapper.in("mac_address", List.of(canonicalMac, canonicalMac.replace(':', '-')));
         return baseDao.selectOne(wrapper);
     }
 

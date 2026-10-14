@@ -91,6 +91,7 @@ class ConfigServiceImplTest {
                 mock(AgentContextProviderService.class),
                 mock(VoiceCloneService.class),
                 mock(AgentVoicePrintDao.class),
-                mock(CorrectWordFileService.class));
+                mock(CorrectWordFileService.class),
+                mock(xiaozhi.modules.project.service.ProjectService.class));
     }
 }

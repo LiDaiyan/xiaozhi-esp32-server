@@ -54,6 +54,16 @@
             </div>
           </div>
         </div>
+        <div class="project-toolbar">
+          <el-select v-model="selectedProject" placeholder="按项目筛选" size="small">
+            <el-option label="全部项目" value="all" />
+            <el-option label="未分组" value="legacy" />
+            <el-option v-for="project in projects" :key="project.projectId"
+              :label="project.projectName + ' (' + project.projectId + ')'" :value="'project:' + project.projectId" />
+          </el-select>
+          <el-button size="small" icon="el-icon-folder" @click="projectDialogVisible = true">项目与白名单</el-button>
+          <el-button size="small" icon="el-icon-refresh" @click="refreshProjectsAndAgents">刷新</el-button>
+        </div>
         <div class="device-list-container">
           <template v-if="isLoading">
             <div v-for="i in skeletonCount" :key="'skeleton-' + i" class="skeleton-item">
@@ -66,12 +76,21 @@
           </template>
 
           <template v-else>
-            <DeviceItem v-for="(item, index) in devices" :key="index" :device="item" :feature-status="featureStatus" 
-              @configure="goToRoleConfig" @deviceManage="handleDeviceManage" @delete="handleDeleteAgent" 
-              @chat-history="handleShowChatHistory" />
+            <template v-for="group in projectGroups">
+              <div :key="group.key + ':heading'" class="project-heading">
+                <strong>{{ group.name }}</strong>
+                <span v-if="group.projectId">Project-Id: {{ group.projectId }}</span>
+                <span>{{ group.agents.length }} 个智能体</span>
+              </div>
+              <DeviceItem v-for="item in group.agents" :key="item.id" :device="item" :feature-status="featureStatus"
+                @configure="goToRoleConfig" @deviceManage="handleDeviceManage" @delete="handleDeleteAgent"
+                @chat-history="handleShowChatHistory" />
+              <div v-if="!group.agents.length" :key="group.key + ':empty'" class="project-empty">暂无智能体</div>
+            </template>
           </template>
         </div>
       </div>
+      <ProjectManagementDialog :visible.sync="projectDialogVisible" @changed="handleProjectsChanged" />
       <AddWisdomBodyDialog :visible.sync="addDeviceDialogVisible" @confirm="handleWisdomBodyAdded" />
       <el-dialog
         :visible.sync="deleteAgentDialogVisible"
@@ -138,6 +157,9 @@
 
 <script>
 import Api from '@/apis/api';
+import projectApi from '@/apis/module/project';
+import { groupAgentsByProject } from '@/utils/projectGrouping.mjs';
+import ProjectManagementDialog from '@/components/ProjectManagementDialog.vue';
 import { mapState } from "vuex";
 import AddWisdomBodyDialog from '@/components/AddWisdomBodyDialog.vue';
 import ChatHistoryDialog from '@/components/ChatHistoryDialog.vue';
@@ -148,9 +170,12 @@ import featureManager from '@/utils/featureManager';
 
 export default {
   name: 'HomePage',
-  components: { DeviceItem, AddWisdomBodyDialog, HeaderBar, VersionFooter, ChatHistoryDialog },
+  components: { ProjectManagementDialog, DeviceItem, AddWisdomBodyDialog, HeaderBar, VersionFooter, ChatHistoryDialog },
   data() {
     return {
+      projectDialogVisible: false,
+      projects: [],
+      selectedProject: 'all',
       addDeviceDialogVisible: false,
       devices: [],
       originalDevices: [],
@@ -179,6 +204,9 @@ export default {
   },
 
   computed: {
+    projectGroups() {
+      return groupAgentsByProject(this.projects, this.devices, this.selectedProject, this.isSearching);
+    },
     ...mapState({
       userInfo: (state) => state.userInfo,
     }),
@@ -188,13 +216,22 @@ export default {
   },
 
   async mounted() {
-    this.fetchAgentList();
+    this.refreshProjectsAndAgents();
     await this.loadFeatureStatus();
     // 从localStorage加载搜索历史
     this.loadSearchHistory();
   },
 
   methods: {
+    async refreshProjectsAndAgents() {
+      this.fetchAgentList();
+      try { this.projects = await projectApi.list() || []; }
+      catch (error) { this.$message.error(error.message); }
+    },
+    handleProjectsChanged(projects) {
+      this.projects = projects;
+      this.fetchAgentList();
+    },
     // 加载功能状态
     async loadFeatureStatus() {
       await featureManager.waitForInitialization();
@@ -432,6 +469,12 @@ export default {
 </script>
 
 <style scoped>
+.project-toolbar { display: flex; align-items: center; gap: 12px; margin-top: 24px; }
+.project-heading { grid-column: 1 / -1; display: flex; align-items: center; gap: 20px; color: #3d4566; }
+.project-heading strong { font-size: 18px; }
+.project-heading span { font-size: 13px; color: #606266; }
+.project-empty { grid-column: 1 / -1; color: #909399; font-size: 14px; padding-bottom: 12px; }
+
 .welcome {
   min-width: 900px;
   min-height: 506px;
