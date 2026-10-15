@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import xiaozhi.common.utils.Result;
+import xiaozhi.modules.agent.dto.ContextProviderDTO;
+import xiaozhi.modules.project.dto.ProjectContextProvidersDTO;
 import xiaozhi.modules.project.dto.ProjectDevicesDTO;
 import xiaozhi.modules.project.dto.ProjectSaveDTO;
 import xiaozhi.modules.project.entity.ProjectDeviceEntity;
@@ -34,6 +36,19 @@ public class ProjectController {
     @PutMapping("/{projectId}")
     public Result<Void> update(@PathVariable String projectId, @RequestBody @Valid ProjectSaveDTO dto) {
         projectService.update(projectId, dto, SecurityUser.getUserId());
+        return new Result<>();
+    }
+
+    @GetMapping("/{projectId}/context-providers")
+    public Result<List<ContextProviderDTO>> contextProviders(@PathVariable String projectId) {
+        return new Result<List<ContextProviderDTO>>().ok(
+                projectService.getContextProviders(projectId, SecurityUser.getUserId()));
+    }
+
+    @PutMapping("/{projectId}/context-providers")
+    public Result<Void> updateContextProviders(@PathVariable String projectId,
+            @RequestBody @Valid ProjectContextProvidersDTO dto) {
+        projectService.updateContextProviders(projectId, dto.getContextProviders(), SecurityUser.getUserId());
         return new Result<>();
     }
 

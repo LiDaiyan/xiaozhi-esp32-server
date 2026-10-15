@@ -19,6 +19,15 @@ Project-Id 全局唯一、区分大小写，支持字母、数字、下划线和
 已经手动绑定到旧智能体的设备，需要先在设备管理页面解绑，再加入项目白名单。
 项目智能体仍可单独配置模型、音色和提示词；之后修改默认模板不会覆盖已有智能体。
 
+## 项目默认上下文源
+
+在【项目与白名单】中点击项目一行的【上下文源】，填写 URL 和请求头后确认即可保存。
+未单独配置上下文源的智能体自动使用所属项目的配置，既适用于新设备，也适用于已绑定的设备。
+智能体单独配置非空时优先；将其清空会恢复继承。项目配置清空后，不再提供项目默认源。
+
+修改后让该项目设备重新连接生效。每台设备仍独立请求上下文接口并携带自己的 `device-id`。
+详细的响应格式见 [上下文源使用教程](context-provider-integration.md)。
+
 ## 设备端请求
 
 在原有 OTA POST 请求中增加 `Project-Id` 请求头，原来的请求体、Device-Id、Client-Id 保持原有协议。
@@ -57,6 +66,8 @@ WebSocket 请求无需新增 Project-Id。原有的 `server.auth.enabled` 和 to
 | GET | `/project` | 列出项目 |
 | POST | `/project` | 创建项目 |
 | PUT | `/project/{projectId}` | 修改名称或接入开关 |
+| GET | `/project/{projectId}/context-providers` | 读取项目默认上下文源 |
+| PUT | `/project/{projectId}/context-providers` | 保存/清空项目默认上下文源 |
 | GET | `/project/{projectId}/devices` | 查看 MAC 白名单 |
 | POST | `/project/{projectId}/devices` | 追加一批 MAC |
 | DELETE | `/project/{projectId}/devices/{macAddress}` | 移除 MAC |
@@ -81,7 +92,7 @@ WebSocket 请求无需新增 Project-Id。原有的 `server.auth.enabled` 和 to
 docker compose -f deploy/compose.yml up -d --build xiaozhi-esp32-server-web
 ```
 
-管理后端启动时通过 Liquibase 自动创建项目和白名单表，并为智能体增加 project_id 字段。
+管理后端启动时通过 Liquibase 自动创建项目和白名单表，为智能体增加 project_id 字段，并为项目增加上下文源 JSON 字段。
 保留数据库和挂载目录即可保留项目、白名单、设备绑定和智能体配置。
 
 发布后检查首页项目入口，导入一个测试 MAC，并验证合法 OTA 不含 activation、

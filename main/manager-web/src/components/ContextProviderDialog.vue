@@ -1,6 +1,6 @@
 <template>
   <CustomDialog
-    :title="$t('contextProviderDialog.title')"
+    :title="title || $t('contextProviderDialog.title')"
     :visible.sync="dialogVisible"
     width="960px"
     size="large"
@@ -117,6 +117,10 @@ export default {
   name: 'ContextProviderDialog',
   components: { CustomDialog },
   props: {
+    title: {
+      type: String,
+      default: ''
+    },
     visible: {
       type: Boolean,
       default: false

@@ -12,6 +12,8 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import xiaozhi.common.exception.RenException;
 import xiaozhi.common.redis.RedisUtils;
 import xiaozhi.modules.agent.dao.AgentDao;
+import xiaozhi.modules.agent.dto.ContextProviderDTO;
+import xiaozhi.modules.project.dto.ProjectSaveDTO;
 import xiaozhi.modules.agent.entity.AgentEntity;
 import xiaozhi.modules.agent.service.AgentService;
 import xiaozhi.modules.device.dao.DeviceDao;
@@ -145,6 +147,46 @@ class ProjectServiceTest {
         when(whitelist.selectById(MAC)).thenReturn(other);
         assertThrows(RenException.class, () -> service.importDevices("p1", List.of(MAC), 7L));
         verify(whitelist, never()).insert(any(ProjectDeviceEntity.class));
+    }
+
+    @Test
+    void projectContextManagementRequiresOwnerAndSupportsClearing() {
+        ProjectEntity project = allowedProject();
+        ContextProviderDTO provider = new ContextProviderDTO();
+        provider.setUrl("https://example.com/context");
+        assertThrows(RenException.class, () -> service.getContextProviders("p1", 8L));
+        assertThrows(RenException.class, () -> service.updateContextProviders("p1", List.of(provider), 8L));
+        verify(projects, never()).updateById(any(ProjectEntity.class));
+        service.updateContextProviders("p1", List.of(provider), 7L);
+        assertEquals(List.of(provider), service.getContextProviders("p1", 7L));
+        service.updateContextProviders("p1", List.of(), 7L);
+        assertTrue(service.getContextProviders("p1", 7L).isEmpty());
+        assertTrue(project.getContextProviders().isEmpty());
+    }
+
+    @Test
+    void defaultsAreScopedToProjectOwnerAndEnabledState() {
+        ProjectEntity project = allowedProject();
+        ContextProviderDTO provider = new ContextProviderDTO();
+        provider.setUrl("https://example.com/p1/context");
+        project.setContextProviders(List.of(provider));
+        assertEquals(List.of(provider), service.getDefaultContextProviders("p1", 7L));
+        assertTrue(service.getDefaultContextProviders("p1", 8L).isEmpty());
+        assertTrue(service.getDefaultContextProviders("p2", 7L).isEmpty());
+        assertTrue(service.getDefaultContextProviders(null, 7L).isEmpty());
+        project.setEnabled(0);
+        assertTrue(service.getDefaultContextProviders("p1", 7L).isEmpty());
+    }
+
+    @Test
+    void invalidContextAddressDoesNotOverwriteExistingConfiguration() {
+        allowedProject();
+        for (String url : List.of("", "file:///etc/passwd", "https://invalid host/context")) {
+            ContextProviderDTO provider = new ContextProviderDTO();
+            provider.setUrl(url);
+            assertThrows(RenException.class, () -> service.updateContextProviders("p1", List.of(provider), 7L));
+        }
+        verify(projects, never()).updateById(any(ProjectEntity.class));
     }
 
     @Test

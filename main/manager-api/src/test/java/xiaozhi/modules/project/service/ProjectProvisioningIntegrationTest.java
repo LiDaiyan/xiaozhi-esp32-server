@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -36,11 +37,13 @@ import org.apache.ibatis.session.SqlSessionFactory;
 import xiaozhi.common.exception.RenException;
 import xiaozhi.common.redis.RedisUtils;
 import xiaozhi.modules.agent.dao.AgentDao;
+import xiaozhi.modules.agent.dto.ContextProviderDTO;
+import xiaozhi.modules.project.dao.ProjectDao;
+import xiaozhi.modules.project.dto.ProjectSaveDTO;
 import xiaozhi.modules.agent.entity.AgentEntity;
 import xiaozhi.modules.agent.service.AgentService;
 import xiaozhi.modules.device.dao.DeviceDao;
 import xiaozhi.modules.device.entity.DeviceEntity;
-import xiaozhi.modules.project.dao.ProjectDao;
 import xiaozhi.modules.project.dao.ProjectDeviceDao;
 
 /** Runs only against a disposable database explicitly named project_test_*. */
@@ -51,6 +54,7 @@ class ProjectProvisioningIntegrationTest {
     @Autowired private ProjectService service;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private DataSource dataSource;
+    @Autowired private ProjectDao projectDao;
 
     @BeforeEach
     void resetDisposableSchema() {
@@ -65,9 +69,10 @@ class ProjectProvisioningIntegrationTest {
                 + "last_connected_at datetime, auto_update tinyint, board varchar(50), alias varchar(64), agent_id varchar(32), "
                 + "app_version varchar(20), sort int, updater bigint, update_date datetime, creator bigint, create_date datetime)");
         // Execute the production migration unchanged, including its foreign keys and indexes.
-        new ResourceDatabasePopulator(new ClassPathResource("db/changelog/202610141200.sql")).execute(dataSource);
+        new ResourceDatabasePopulator(new ClassPathResource("db/changelog/202610141200.sql"),
+                new ClassPathResource("db/changelog/202610151200.sql")).execute(dataSource);
         jdbc.update("INSERT INTO sys_user VALUES (7)");
-        jdbc.update("INSERT INTO ai_project VALUES ('p1', '工厂一', 7, 1, NOW()), ('p2', '工厂二', 7, 1, NOW())");
+        jdbc.update("INSERT INTO ai_project(project_id, project_name, user_id, enabled, created_at) VALUES ('p1', '工厂一', 7, 1, NOW()), ('p2', '工厂二', 7, 1, NOW())");
         jdbc.update("INSERT INTO ai_project_device VALUES (?, 'p1', NOW())", MAC);
     }
 
@@ -109,6 +114,29 @@ class ProjectProvisioningIntegrationTest {
         assertThrows(RenException.class, () -> service.importDevices("p1",
                 List.of("00:11:22:33:44:55", "bb:bb:bb:bb:bb:bb"), 7L));
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM ai_project_device WHERE mac_address='00:11:22:33:44:55'", Integer.class));
+    }
+
+    @Test
+    void projectContextJsonRoundTripsAndSurvivesMetadataUpdateThenClears() {
+        ContextProviderDTO provider = new ContextProviderDTO();
+        provider.setUrl("https://example.com/context");
+        provider.setHeaders(Map.of("Authorization", "Bearer test-value", "X-Project", "p1"));
+        service.updateContextProviders("p1", List.of(provider), 7L);
+        assertEquals(List.of(provider), service.getContextProviders("p1", 7L));
+        assertEquals(List.of(provider), projectDao.lockById("p1").getContextProviders());
+
+        ProjectSaveDTO metadata = new ProjectSaveDTO();
+        metadata.setProjectId("p1"); metadata.setProjectName("重命名项目"); metadata.setEnabled(true);
+        service.update("p1", metadata, 7L);
+        assertEquals(List.of(provider), service.getDefaultContextProviders("p1", 7L));
+        assertTrue(service.getDefaultContextProviders("p2", 7L).isEmpty());
+        assertTrue(service.getDefaultContextProviders("p1", 8L).isEmpty());
+
+        service.provision("p1", MAC, null);
+        assertEquals(List.of(provider), service.getDefaultContextProviders("p1", 7L));
+        service.updateContextProviders("p1", List.of(), 7L);
+        assertTrue(service.getContextProviders("p1", 7L).isEmpty());
+        assertEquals(0, jdbc.queryForObject("SELECT JSON_LENGTH(context_providers) FROM ai_project WHERE project_id='p1'", Integer.class));
     }
 
     @Configuration

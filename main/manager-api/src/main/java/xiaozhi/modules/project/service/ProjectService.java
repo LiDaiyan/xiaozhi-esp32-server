@@ -1,5 +1,7 @@
 package xiaozhi.modules.project.service;
 
+import java.net.URI;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -17,6 +19,7 @@ import xiaozhi.common.exception.RenException;
 import xiaozhi.common.redis.RedisKeys;
 import xiaozhi.common.redis.RedisUtils;
 import xiaozhi.modules.agent.dao.AgentDao;
+import xiaozhi.modules.agent.dto.ContextProviderDTO;
 import xiaozhi.modules.agent.entity.AgentEntity;
 import xiaozhi.modules.agent.service.AgentService;
 import xiaozhi.modules.device.dao.DeviceDao;
@@ -83,6 +86,45 @@ public class ProjectService {
         project.setProjectName(dto.getProjectName().trim());
         project.setEnabled(Boolean.TRUE.equals(dto.getEnabled()) ? 1 : 0);
         projectDao.updateById(project);
+    }
+
+    public List<ContextProviderDTO> getContextProviders(String projectId, Long userId) {
+        ProjectEntity project = owned(projectId, userId, false);
+        return project.getContextProviders() == null ? Collections.emptyList() : project.getContextProviders();
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void updateContextProviders(String projectId, List<ContextProviderDTO> providers, Long userId) {
+        ProjectEntity project = owned(projectId, userId, true);
+        if (providers == null || providers.size() > 20) {
+            throw new RenException("请提供上下文源列表，每个项目最多20个，清空请传入空数组");
+        }
+        for (ContextProviderDTO provider : providers) {
+            try {
+                URI uri = URI.create(provider == null || provider.getUrl() == null ? "" : provider.getUrl());
+                if (!("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()))
+                        || uri.getHost() == null || uri.getFragment() != null) {
+                    throw new IllegalArgumentException();
+                }
+            } catch (IllegalArgumentException e) {
+                throw new RenException("上下文源地址必须是有效的 HTTP 或 HTTPS URL");
+            }
+        }
+        project.setContextProviders(providers);
+        projectDao.updateById(project);
+    }
+
+    /** Resolve on each device connection; project defaults are never copied into agent overrides. */
+    public List<ContextProviderDTO> getDefaultContextProviders(String projectId, Long userId) {
+        if (projectId == null || projectId.isBlank()) {
+            return Collections.emptyList();
+        }
+        ProjectEntity project = projectDao.selectById(projectId);
+        if (project == null || !Integer.valueOf(1).equals(project.getEnabled())
+                || !Objects.equals(project.getUserId(), userId) || project.getContextProviders() == null) {
+            return Collections.emptyList();
+        }
+        return project.getContextProviders();
     }
 
     public List<ProjectDeviceEntity> devices(String projectId, Long userId) {

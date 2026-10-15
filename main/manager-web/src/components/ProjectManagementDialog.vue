@@ -1,6 +1,7 @@
 <template>
+  <div>
   <el-dialog title="项目与设备白名单" :visible="visible" @update:visible="$emit('update:visible', $event)"
-    width="850px" :close-on-click-modal="false" @open="loadProjects">
+    width="850px" :close-on-click-modal="false" @open="loadProjects" @closed="contextDialogVisible = false">
     <div v-loading="loading || saving">
       <el-form inline size="small" @submit.native.prevent>
         <el-form-item label="Project-Id">
@@ -23,13 +24,18 @@
         <el-table-column label="接入状态" width="90">
           <template slot-scope="scope">{{ scope.row.enabled === 1 ? '允许' : '停用' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="150">
+        <el-table-column label="上下文源" width="90">
+          <template slot-scope="scope">{{ (scope.row.contextProviders || []).length }} 个</template>
+        </el-table-column>
+        <el-table-column label="操作" width="220">
           <template slot-scope="scope">
             <el-button type="text" @click="editProject(scope.row)">编辑</el-button>
             <el-button type="text" @click="selectProject(scope.row.projectId)">白名单</el-button>
+            <el-button type="text" @click="openProjectContext(scope.row)">上下文源</el-button>
           </template>
         </el-table-column>
       </el-table>
+      <p class="context-hint">智能体未单独配置上下文源时，自动使用所属项目的配置；修改后设备重新连接生效。</p>
       <template v-if="selectedProjectId">
         <h3>{{ selectedProjectId }} · MAC 白名单</h3>
         <p>每台白名单设备首次请求 OTA 时自动创建一个智能体，并归属于创建项目的账号。</p>
@@ -51,19 +57,25 @@
       </template>
     </div>
   </el-dialog>
+  <ContextProviderDialog :visible.sync="contextDialogVisible" :providers="contextProviders"
+    :title="contextProjectId + ' · 项目上下文源'" @confirm="saveProjectContext" />
+  </div>
 </template>
 
 <script>
 import projectApi from '@/apis/module/project';
+import ContextProviderDialog from './ContextProviderDialog.vue';
 
 export default {
   name: 'ProjectManagementDialog',
+  components: { ContextProviderDialog },
   props: { visible: Boolean },
   data() {
     return {
       projects: [], loading: false, saving: false, devicesLoading: false,
       editing: false, form: { projectId: '', projectName: '', enabled: true },
       selectedProjectId: '', whitelist: [], macText: '',
+      contextDialogVisible: false, contextProjectId: '', contextProviders: [],
     };
   },
   methods: {
@@ -100,6 +112,28 @@ export default {
         this.$message.success('项目已保存');
       } catch (error) { this.$message.error(error.message); }
       finally { this.saving = false; }
+    },
+    async openProjectContext(project) {
+      this.loading = true;
+      try {
+        const providers = await projectApi.contextProviders(project.projectId);
+        this.contextProjectId = project.projectId;
+        this.contextProviders = providers || [];
+        if (this.visible) this.contextDialogVisible = true;
+      } catch (error) { this.$message.error(error.message); }
+      finally { this.loading = false; }
+    },
+    async saveProjectContext(providers) {
+      this.contextProviders = providers;
+      this.saving = true;
+      try {
+        await projectApi.updateContextProviders(this.contextProjectId, providers);
+        this.$message.success('项目上下文源已保存，设备重新连接后生效');
+        await this.loadProjects();
+      } catch (error) {
+        this.$message.error(error.message);
+        if (this.visible) this.contextDialogVisible = true;
+      } finally { this.saving = false; }
     },
     async selectProject(id) {
       this.selectedProjectId = id;

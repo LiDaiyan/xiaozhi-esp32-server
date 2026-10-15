@@ -23,6 +23,7 @@ import xiaozhi.common.redis.RedisUtils;
 import xiaozhi.common.utils.ConvertUtils;
 import xiaozhi.common.utils.JsonUtils;
 import xiaozhi.modules.agent.dao.AgentVoicePrintDao;
+import xiaozhi.modules.agent.dto.ContextProviderDTO;
 import xiaozhi.modules.agent.entity.AgentContextProviderEntity;
 import xiaozhi.modules.agent.entity.AgentEntity;
 import xiaozhi.modules.agent.entity.AgentPluginMapping;
@@ -222,9 +223,13 @@ public class ConfigServiceImpl implements ConfigService {
 
         // 获取上下文源配置
         AgentContextProviderEntity contextProviderEntity = agentContextProviderService.getByAgentId(agent.getId());
-        if (contextProviderEntity != null && contextProviderEntity.getContextProviders() != null
-                && !contextProviderEntity.getContextProviders().isEmpty()) {
-            result.put("context_providers", contextProviderEntity.getContextProviders());
+        List<ContextProviderDTO> contextProviders = contextProviderEntity == null
+                ? null : contextProviderEntity.getContextProviders();
+        if (contextProviders == null || contextProviders.isEmpty()) {
+            contextProviders = projectService.getDefaultContextProviders(agent.getProjectId(), agent.getUserId());
+        }
+        if (contextProviders != null && !contextProviders.isEmpty()) {
+            result.put("context_providers", contextProviders);
         }
 
         // 获取声纹信息

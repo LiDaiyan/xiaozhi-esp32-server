@@ -26,6 +26,8 @@ export default {
   list: () => request(''),
   create: data => request('', 'POST', data),
   update: (id, data) => request(`/${encodeURIComponent(id)}`, 'PUT', data),
+  contextProviders: id => request(`/${encodeURIComponent(id)}/context-providers`),
+  updateContextProviders: (id, contextProviders) => request(`/${encodeURIComponent(id)}/context-providers`, 'PUT', { contextProviders }),
   devices: id => request(`/${encodeURIComponent(id)}/devices`),
   importDevices: (id, macAddresses) => request(`/${encodeURIComponent(id)}/devices`, 'POST', { macAddresses }),
   removeDevice: (id, mac) => request(`/${encodeURIComponent(id)}/devices/${encodeURIComponent(mac)}`, 'DELETE'),
