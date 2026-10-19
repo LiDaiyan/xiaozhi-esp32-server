@@ -591,21 +591,21 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String createAgent(AgentCreateDTO dto) {
-        return createAgent(dto, SecurityUser.getUserId(), null);
+        return createAgent(dto, SecurityUser.getUserId(), null, null);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public String createAgentForProject(String agentName, Long userId, String projectId) {
+    public String createAgentForProject(String agentName, Long userId, String projectId, String defaultPrompt) {
         if (userId == null || StringUtils.isBlank(projectId)) {
             throw new RenException("项目及所属用户不能为空");
         }
         AgentCreateDTO dto = new AgentCreateDTO();
         dto.setAgentName(agentName);
-        return createAgent(dto, userId, projectId);
+        return createAgent(dto, userId, projectId, defaultPrompt);
     }
 
-    private String createAgent(AgentCreateDTO dto, Long userId, String projectId) {
+    private String createAgent(AgentCreateDTO dto, Long userId, String projectId, String defaultPrompt) {
         // 转换为实体
         AgentEntity entity = ConvertUtils.sourceToTarget(dto, AgentEntity.class);
 
@@ -673,6 +673,9 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
         // 设置用户ID和创建者信息
         entity.setUserId(userId);
         entity.setProjectId(projectId);
+        if (StringUtils.isNotBlank(defaultPrompt)) {
+            entity.setSystemPrompt(defaultPrompt);
+        }
         entity.setCreator(userId);
         entity.setUpdater(userId);
         entity.setCreatedAt(new Date());

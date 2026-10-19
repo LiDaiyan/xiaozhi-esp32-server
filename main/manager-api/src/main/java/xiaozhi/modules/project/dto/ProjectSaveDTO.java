@@ -13,5 +13,7 @@ public class ProjectSaveDTO {
     @NotBlank
     @Size(max = 100)
     private String projectName;
+    @Size(max = 10000)
+    private String defaultPrompt;
     private Boolean enabled = true;
 }

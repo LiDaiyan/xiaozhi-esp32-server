@@ -58,8 +58,8 @@ class ProjectServiceTest {
 
     @Test
     void provisionsUsingProjectOwnerAndDeviceHeaderRatherThanReportBody() {
-        allowedProject();
-        when(agentService.createAgentForProject(anyString(), eq(7L), eq("p1"))).thenReturn("agent1");
+        allowedProject().setDefaultPrompt("项目专属提示词 {{dynamic_context}}");
+        when(agentService.createAgentForProject(anyString(), eq(7L), eq("p1"), eq("项目专属提示词 {{dynamic_context}}"))).thenReturn("agent1");
         DeviceReportReqDTO report = new DeviceReportReqDTO();
         report.setMacAddress("11:22:33:44:55:66");
         DeviceEntity device = service.provision("p1", "AA-BB-CC-DD-EE-FF", report);
@@ -67,7 +67,7 @@ class ProjectServiceTest {
         assertEquals(7L, device.getUserId());
         assertEquals("agent1", device.getAgentId());
         assertEquals(1, device.getAutoUpdate());
-        verify(agentService).createAgentForProject("工厂一 / " + MAC, 7L, "p1");
+        verify(agentService).createAgentForProject("工厂一 / " + MAC, 7L, "p1", "项目专属提示词 {{dynamic_context}}");
         verify(devices).insert(device);
     }
 

@@ -16,6 +16,7 @@ public class ProjectEntity {
     @TableId(type = IdType.INPUT)
     private String projectId;
     private String projectName;
+    private String defaultPrompt;
     private Long userId;
     private Integer enabled;
     private Date createdAt;

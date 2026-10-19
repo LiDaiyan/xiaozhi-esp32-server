@@ -67,6 +67,7 @@ public class ProjectService {
         ProjectEntity project = new ProjectEntity();
         project.setProjectId(dto.getProjectId());
         project.setProjectName(dto.getProjectName().trim());
+        project.setDefaultPrompt(dto.getDefaultPrompt() == null ? "" : dto.getDefaultPrompt());
         project.setUserId(userId);
         project.setEnabled(Boolean.TRUE.equals(dto.getEnabled()) ? 1 : 0);
         project.setCreatedAt(new Date());
@@ -84,6 +85,9 @@ public class ProjectService {
             throw new RenException("Project-Id 创建后不能修改");
         }
         project.setProjectName(dto.getProjectName().trim());
+        if (dto.getDefaultPrompt() != null) {
+            project.setDefaultPrompt(dto.getDefaultPrompt());
+        }
         project.setEnabled(Boolean.TRUE.equals(dto.getEnabled()) ? 1 : 0);
         projectDao.updateById(project);
     }
@@ -238,7 +242,7 @@ public class ProjectService {
         String name = project.getProjectName();
         name = name.substring(0, name.offsetByCodePoints(0, Math.min(44, name.codePointCount(0, name.length()))));
         String agentId = agentService.createAgentForProject(name + " / " + normalized,
-                project.getUserId(), projectId);
+                project.getUserId(), projectId, project.getDefaultPrompt());
         Date now = new Date();
         DeviceEntity device = new DeviceEntity();
         device.setId(normalized);

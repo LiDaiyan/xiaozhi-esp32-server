@@ -111,10 +111,10 @@
         <div class="delete-agent-content">
           <i class="el-icon-warning-outline delete-agent-warning"></i>
           <div class="delete-agent-message">
-            <div class="delete-agent-copy-guard" @copy.prevent @cut.prevent @contextmenu.prevent>
+            <div>
               {{ $t('home.confirmDeleteAgent', { agentName: deleteTargetAgentName }) }}
             </div>
-            <div class="delete-agent-target delete-agent-copy-guard" @copy.prevent @cut.prevent @contextmenu.prevent>
+            <div class="delete-agent-target">
               {{ deleteTargetAgentName }}
             </div>
             <el-input
@@ -123,9 +123,6 @@
               class="delete-agent-input"
               :placeholder="$t('home.deleteAgentNamePlaceholder')"
               clearable
-              @paste.native.prevent="handleDeleteAgentPaste"
-              @drop.native.prevent="handleDeleteAgentPaste"
-              @contextmenu.native.prevent
               @keyup.enter.native="confirmDeleteAgent"
             />
             <div v-if="deleteAgentConfirmText && !isDeleteAgentNameMatched" class="delete-agent-helper">
@@ -313,9 +310,6 @@ export default {
           this.$refs.deleteAgentConfirmInput.focus();
         }
       });
-    },
-    handleDeleteAgentPaste() {
-      this.$message.warning(this.$t('home.deleteAgentPasteForbidden'));
     },
     closeDeleteAgentDialog() {
       if (this.isDeletingAgent) return;
@@ -823,11 +817,6 @@ export default {
   color: #303133;
   font-weight: 600;
   word-break: break-all;
-}
-
-.delete-agent-copy-guard {
-  user-select: none;
-  -webkit-user-select: none;
 }
 
 .delete-agent-input {

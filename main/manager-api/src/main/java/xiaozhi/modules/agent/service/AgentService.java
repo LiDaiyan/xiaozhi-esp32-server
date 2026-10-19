@@ -154,7 +154,7 @@ public interface AgentService extends BaseService<AgentEntity> {
     String createAgent(AgentCreateDTO dto);
 
     /** Internal provisioning entry point; project ownership is checked by ProjectService. */
-    String createAgentForProject(String agentName, Long userId, String projectId);
+    String createAgentForProject(String agentName, Long userId, String projectId, String defaultPrompt);
 
 
 }

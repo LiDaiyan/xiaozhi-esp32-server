@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 import xiaozhi.modules.agent.dao.AgentDao;
@@ -18,8 +20,10 @@ import xiaozhi.modules.model.service.ModelProviderService;
 import xiaozhi.modules.timbre.service.TimbreService;
 
 class AgentProjectCreationTest {
-    @Test
-    void anonymousOtaCreationUsesProjectOwnerAndTheExistingDefaultTemplate() {
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"   ", "你是项目一的客服。上下文：{{dynamic_context}}"})
+    void anonymousOtaCreationUsesProjectOwnerAndProjectPromptWithTemplateFallback(String projectPrompt) {
         AgentDao dao = mock(AgentDao.class);
         AgentTemplateService templates = mock(AgentTemplateService.class);
         AgentSnapshotService snapshots = mock(AgentSnapshotService.class);
@@ -35,7 +39,7 @@ class AgentProjectCreationTest {
         template.setSystemPrompt("项目默认提示词");
         when(templates.getDefaultTemplate()).thenReturn(template);
         when(dao.insert(any(AgentEntity.class))).thenReturn(1);
-        String id = service.createAgentForProject("设备一", 7L, "p1");
+        String id = service.createAgentForProject("设备一", 7L, "p1", projectPrompt);
         ArgumentCaptor<AgentEntity> capture = ArgumentCaptor.forClass(AgentEntity.class);
         verify(dao).insert(capture.capture());
         AgentEntity agent = capture.getValue();
@@ -46,7 +50,8 @@ class AgentProjectCreationTest {
         assertEquals("LLM_qwen", agent.getLlmModelId());
         assertEquals("TTS_aliyun", agent.getTtsModelId());
         assertEquals("voice1", agent.getTtsVoiceId());
-        assertEquals("项目默认提示词", agent.getSystemPrompt());
+        assertEquals(projectPrompt == null || projectPrompt.isBlank() ? "项目默认提示词" : projectPrompt,
+                agent.getSystemPrompt());
         verify(snapshots).createSnapshot(id, "initial");
     }
 }

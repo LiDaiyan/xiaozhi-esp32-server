@@ -13,6 +13,11 @@
         <el-form-item label="允许接入">
           <el-switch v-model="form.enabled" />
         </el-form-item>
+        <el-form-item label="默认提示词" class="prompt-form-item">
+          <el-input v-model="form.defaultPrompt" type="textarea" :rows="4" maxlength="10000" show-word-limit
+            placeholder="用于该项目新建智能体的角色设定，留空沿用系统默认模板。可使用 {{dynamic_context}} 注入上下文。" />
+          <div class="prompt-hint">仅在白名单设备首次接入、创建智能体时使用，修改不会覆盖已有智能体。</div>
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" :disabled="saving" @click="saveProject">{{ editing ? '保存项目' : '创建项目' }}</el-button>
           <el-button v-if="editing" @click="resetForm">取消编辑</el-button>
@@ -73,7 +78,7 @@ export default {
   data() {
     return {
       projects: [], loading: false, saving: false, devicesLoading: false,
-      editing: false, form: { projectId: '', projectName: '', enabled: true },
+      editing: false, form: { projectId: '', projectName: '', defaultPrompt: '', enabled: true },
       selectedProjectId: '', whitelist: [], macText: '',
       contextDialogVisible: false, contextProjectId: '', contextProviders: [],
     };
@@ -90,11 +95,11 @@ export default {
     },
     resetForm() {
       this.editing = false;
-      this.form = { projectId: '', projectName: '', enabled: true };
+      this.form = { projectId: '', projectName: '', defaultPrompt: '', enabled: true };
     },
     editProject(project) {
       this.editing = true;
-      this.form = { projectId: project.projectId, projectName: project.projectName, enabled: project.enabled === 1 };
+      this.form = { projectId: project.projectId, projectName: project.projectName, defaultPrompt: project.defaultPrompt || '', enabled: project.enabled === 1 };
     },
     async saveProject() {
       if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(this.form.projectId) || !this.form.projectName.trim()) {
@@ -190,6 +195,9 @@ export default {
 </script>
 
 <style scoped>
+.prompt-form-item { display: block; }
+.prompt-form-item ::v-deep .el-form-item__content { display: block; }
+.prompt-hint { color: #909399; font-size: 12px; line-height: 1.6; margin-top: 6px; }
 h3 { margin: 24px 0 8px; font-size: 16px; }
 p, .import-actions span { color: #606266; font-size: 13px; }
 .import-actions { display: flex; gap: 12px; align-items: center; margin: 12px 0; }

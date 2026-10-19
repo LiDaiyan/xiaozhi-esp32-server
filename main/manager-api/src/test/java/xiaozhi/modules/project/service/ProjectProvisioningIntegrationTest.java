@@ -70,7 +70,8 @@ class ProjectProvisioningIntegrationTest {
                 + "app_version varchar(20), sort int, updater bigint, update_date datetime, creator bigint, create_date datetime)");
         // Execute the production migration unchanged, including its foreign keys and indexes.
         new ResourceDatabasePopulator(new ClassPathResource("db/changelog/202610141200.sql"),
-                new ClassPathResource("db/changelog/202610151200.sql")).execute(dataSource);
+                new ClassPathResource("db/changelog/202610151200.sql"),
+                new ClassPathResource("db/changelog/202610191200.sql")).execute(dataSource);
         jdbc.update("INSERT INTO sys_user VALUES (7)");
         jdbc.update("INSERT INTO ai_project(project_id, project_name, user_id, enabled, created_at) VALUES ('p1', '工厂一', 7, 1, NOW()), ('p2', '工厂二', 7, 1, NOW())");
         jdbc.update("INSERT INTO ai_project_device VALUES (?, 'p1', NOW())", MAC);
@@ -139,6 +140,23 @@ class ProjectProvisioningIntegrationTest {
         assertEquals(0, jdbc.queryForObject("SELECT JSON_LENGTH(context_providers) FROM ai_project WHERE project_id='p1'", Integer.class));
     }
 
+    @Test
+    void defaultPromptRoundTripsPreservesOnOmittedUpdateAndCanBeCleared() {
+        ProjectSaveDTO dto = new ProjectSaveDTO();
+        dto.setProjectId("p3"); dto.setProjectName("项目三");
+        dto.setDefaultPrompt("你是项目客服。上下文：{{dynamic_context}}");
+        service.create(dto, 7L);
+        assertEquals(dto.getDefaultPrompt(), projectDao.selectById("p3").getDefaultPrompt());
+
+        String prompt = dto.getDefaultPrompt();
+        dto.setDefaultPrompt(null);
+        service.update("p3", dto, 7L);
+        assertEquals(prompt, projectDao.selectById("p3").getDefaultPrompt());
+        dto.setDefaultPrompt("");
+        service.update("p3", dto, 7L);
+        assertEquals("", projectDao.selectById("p3").getDefaultPrompt());
+    }
+
     @Configuration
     @EnableTransactionManagement
     @MapperScan(basePackageClasses = {ProjectDao.class, DeviceDao.class})
@@ -177,7 +195,7 @@ class ProjectProvisioningIntegrationTest {
         }
         @Bean AgentService agentService(JdbcTemplate jdbc) {
             AgentService agents = mock(AgentService.class);
-            when(agents.createAgentForProject(anyString(), anyLong(), anyString())).thenAnswer(call -> {
+            when(agents.createAgentForProject(anyString(), anyLong(), anyString(), nullable(String.class))).thenAnswer(call -> {
                 String id = UUID.randomUUID().toString().replace("-", "");
                 jdbc.update("INSERT INTO ai_agent(id, user_id, agent_name, project_id) VALUES (?, ?, ?, ?)",
                         id, call.getArgument(1), call.getArgument(0), call.getArgument(2));
